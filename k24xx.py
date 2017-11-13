@@ -81,7 +81,7 @@ class K24xx:
       #err = self.port.readline()
       #print(err)
 
-  def setOutout(self,value):
+  def setOutput(self,value):
     if value == True:
       self._write(':OUTP ON')
       time.sleep(self.outOnSettleTime) # let the output settle

@@ -22,7 +22,7 @@ args = parser.parse_args()
 k = K24xx(baud=args.baud, port=args.port, timeout=args.timeout)
 
 k.currentSetup(nplc=args.nplc, nMean=args.meanValues)
-k.setOutout(True)
+k.setOutput(True)
 
 m = 0
 while True:
@@ -33,6 +33,6 @@ while True:
   if args.n == m:
       break
 
-k.setOutout(False)
+k.setOutput(False)
 
 sys.exit(0)
