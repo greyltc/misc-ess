@@ -3,6 +3,7 @@
 
 import serial
 import time
+import sys
 
 class K24xx:
   """keithley 24xx library
@@ -17,8 +18,9 @@ class K24xx:
     # flush the read buffer here
     self.port = serial.Serial(port,baud,timeout=0.5)
     self.port.flush()
-    self.port.reset_output_buffer()
-    self.port.reset_input_buffer()
+    if sys.version_info[0] > 3:
+      self.port.reset_output_buffer()
+      self.port.reset_input_buffer()
     c = b'c'
     while c is not b'':
       c = self.port.read()
