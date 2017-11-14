@@ -25,7 +25,7 @@ class K24xx:
     c = b'c'
     while c is not b'':
       c = self.port.read()
-      print('Flush Read:', c)
+      #print('Flush Read:', c)
     self.port.close()
 
     self.port = serial.Serial(port,baud,timeout=timeout)
