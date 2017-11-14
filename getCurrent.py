@@ -16,7 +16,7 @@ parser.add_argument('-b','--baud', dest='baud', type=int, default=9600, help='Se
 parser.add_argument('-t','--timeout', dest='timeout', type=int, default=30, help='Comms timeout [s]')
 parser.add_argument('-a','--average', dest='meanValues', type=int, default=1, help='Number of values to internally average')
 parser.add_argument('-c','--nplc', dest='nplc', type=float, default=10.0, help='Number of power line cycles to integrate over when measuring')
-parser.add_argument('-s','--timestamp', dest='time', type=bool, action='store_true', default=False, help='Print out timestamp with current value')
+parser.add_argument('-s','--timestamp', dest='time', action='store_true', default=False, help='Print out timestamp with current value')
 parser.add_argument('-n','--measurements', dest='n', type=int, default=1, help='Number of measurements to make (-1 for infinty)')
 
 args = parser.parse_args()
@@ -29,12 +29,12 @@ k.setOutput(True)
 m = 0
 while True:
   if args.time == True:
-    [time current] = k.getCurrent()
+    [current, time] = k.getCurrent()
     print(time,', ',current)
   else:
     current = k.getCurrent()
     print(current)
-  m = m+1
+  m = m + 1
 
   if args.n == m:
       break

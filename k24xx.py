@@ -16,7 +16,8 @@ class K24xx:
     """
 
     # flush the read buffer here
-    self.port = serial.Serial(port,baud,timeout=0.5)
+    self.port = serial.Serial(port,baud,timeout=1)
+    self._write('*RST')
     self.port.flush()
     if sys.version_info[0] > 3:
       self.port.reset_output_buffer()
@@ -24,6 +25,7 @@ class K24xx:
     c = b'c'
     while c is not b'':
       c = self.port.read()
+      print('Flush Read:', c)
     self.port.close()
 
     self.port = serial.Serial(port,baud,timeout=timeout)
@@ -123,6 +125,9 @@ class K24xx:
   def getCurrent(self):
     """Reads current from sourcemeter
     """    
-    current = self._qu('READ?')
-    print('Current query=', current)
-    return float(current)
+    vals = self._qu('READ?').split(',')
+    if len(vals) == 1:
+      ret = float(vals[0])
+    else:
+      ret = [float(val) for val in vals ]
+    return(ret)
