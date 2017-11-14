@@ -8,7 +8,6 @@ import sys
 class K24xx:
   """keithley 24xx library
   """
-  takeTime = None
   port = None
   expectedDeviceString = 'KEITHLEY INSTRUMENTS INC.,MODEL 2410,4090615,C33   Mar 31 2015 09:32:39/A02  /J/K\r\n'
   outOnSettleTime = 0.5 # seconds to settle after output turned on
@@ -80,7 +79,6 @@ class K24xx:
   def currentSetup(self,nplc=10.0,nMean=1,time=False):
     """Setup sourcemeter for current measurements
     """
-    self.takeTime = time
     cmds = []
     cmds.append('*RST')
     cmds.append(':SOUR:FUNC VOLT')
