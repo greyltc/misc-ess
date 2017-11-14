@@ -12,7 +12,15 @@ class K24xx:
   outOnSettleTime = 0.5 # seconds to settle after output turned on
   def __init__(self, port='/dev/ttyUSB0', baud=9600, timeout=30):
     """keithley 24xx library constructor
-    """    
+    """
+
+    # flush the read buffer here
+    self.port = serial.Serial(port,baud,timeout=0.5)
+    c = 'c'
+    while c is not '':
+      c = self.port.read()
+    self.port.close()
+
     self.port = serial.Serial(port,baud,timeout=timeout)
     identStr = self._qu('*IDN?')
     
