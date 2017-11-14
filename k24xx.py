@@ -16,8 +16,11 @@ class K24xx:
 
     # flush the read buffer here
     self.port = serial.Serial(port,baud,timeout=0.5)
-    c = 'c'
-    while c is not '':
+    self.port.flush()
+    self.port.reset_output_buffer()
+    self.port.reset_input_buffer()
+    c = b'c'
+    while c is not b'':
       c = self.port.read()
     self.port.close()
 
@@ -41,6 +44,17 @@ class K24xx:
       time.sleep(0.1)
     except:
       pass
+    
+    try:
+      self.port.reset_output_buffer()
+    except:
+      pass
+
+    try:
+      self.port.reset_input_buffer()
+    except:
+      pass
+    
     try:
       self.port.close()
     except:
