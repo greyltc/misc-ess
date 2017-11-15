@@ -1,18 +1,18 @@
 # written by grey@christoforo.net
-# on 8 Nov 2017
+# on 15 Nov 2017
 
 import serial
 import time
 import sys
 
-class K24xx:
-  """keithley 24xx library
+class K6485:
+  """keithley 6485 library
   """
   port = None
-  expectedDeviceString = 'KEITHLEY INSTRUMENTS INC.,MODEL 2410,4090615,C33   Mar 31 2015 09:32:39/A02  /J/K\r\n'
+  expectedDeviceString = 'KEITHLEY INSTRUMENTS INC.,MODEL 6485,4038279,C01   Jun 23 2010 12:22:00/A02  /H\r\n'
   outOnSettleTime = 0.5 # seconds to settle after output turned on
   def __init__(self, port='/dev/ttyUSB0', baud=57600, timeout=30):
-    """keithley 24xx library constructor
+    """keithley 6485 library constructor
     """
 
     # flush the read buffer here
@@ -30,7 +30,7 @@ class K24xx:
 
     self.port = serial.Serial(port,baud,timeout=timeout)
     identStr = self._qu('*IDN?')
-    
+
     if identStr == self.expectedDeviceString:
       pass
       #print('Conected to', deviceString.decode("utf-8"))
@@ -43,7 +43,6 @@ class K24xx:
     """
     #print('Cleaning up sourcemeter comms')
     try:
-      self._write(':OUTP OFF')
       self.port.flush()
       time.sleep(0.1)
     except:
@@ -76,51 +75,46 @@ class K24xx:
     self._write(cmd)
     result = self.port.readline()
     decoded = result.decode('utf-8')
-    return(decoded)
+    return(decoded) 
     
   def currentSetup(self,nplc=10.0,nMean=1,t=False):
     """Setup sourcemeter for current measurements
     """
-    cmds = []
-    cmds.append('*RST')
-    cmds.append(':SOUR:FUNC VOLT')
-    cmds.append(':SOUR:VOLT:MODE FIXED')
-    cmds.append(':SENS:FUNC "CURR"')
-    cmds.append(':SENS:CURR:NPLC {:}'.format(nplc))
-    cmds.append(':SOUR:VOLT:RANG MIN')
-    cmds.append(':SOUR:VOLT:LEV 0')
+    cmds = """*RST
+      :SYST:ZCH ON
+      :CURR:RANG 2e-9
+      INIT
+      :SYST:ZCOR:ACQ
+      :SYST:ZCOR ON
+      :CURR:RANG MIN
+      :SYST:ZCH OFF
+      """
+    cmds = cmds.splitlines()
+    cmds.append(':CURR:NPLC {:}'.format(nplc))
+    
     if t == False:
-      cmds.append(':FORM:ELEM CURR')
+      cmds.append(':FORM:ELEM READ')
     elif t == True:
-      cmds.append(':FORM:ELEM CURR, TIME')
+      cmds.append(':FORM:ELEM READ, TIME')
     else:
-      print('ERROR: t parameter data type')
-      cmds.append(':FORM:ELEM CURR')
+      print('ERROR: time parameter data type')
+      cmds.append(':FORM:ELEM READ')
     
     nMean = int(nMean)
     if nMean == 1:
       cmds.append(':SENS:AVER:STAT 0')
     elif (nMean > 1) and (nMean <= 100):
       cmds.append(':SENS:AVER:STAT 1')
+      cmds.append(':SENS:AVER:TCON REP')
       cmds.append(':SENS:AVER:STAT {:}'.format(nMean))
     else:
       print('ERROR: Got invalid nMean value')
     
     for cmd in cmds:
+      cmd = cmd.strip()
       #print('Sending', cmd)
       self._write(cmd)
-      #self.port.write(b':SYST:ERR?\n')
-      #err = self.port.readline()
-      #print(err)
-
-  def setOutput(self,value):
-    if value == True:
-      self._write(':OUTP ON')
-      time.sleep(self.outOnSettleTime) # let the output settle
-    elif value == False:
-      self._write(':OUTP OFF')
-    else:
-      print('Invalid data type')
+      #print(self._qu('STAT:QUE?'))
       
   def getCurrent(self):
     """Reads current from sourcemeter
