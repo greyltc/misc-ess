@@ -4,7 +4,7 @@ from ps4262 import ps4262
 import pylab as plt
 import time
 
-voltageRange = 2 # volts
+voltageRange = 5 # volts
 requestedSamplingInterval = 1e-6 # seconds
 captureDuration = 0.3 # seconds
 triggersPerMinute = 30
@@ -15,10 +15,10 @@ print (ps.getMetatada())
 def plot(x,y):
     plt.ion()
     plt.figure()
-    plt.plot(x, y*1e6)
+    plt.plot(x, y*1e9)
     plt.grid(True)
     plt.title("Picoscope 4000 waveform")
-    plt.ylabel("Current [µA]")
+    plt.ylabel("Current [nA]")
     plt.xlabel("Time [s]")
     #plt.legend()
     plt.show()
