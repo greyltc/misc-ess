@@ -26,10 +26,9 @@ class ps4262:
         self.setFGen(enabled = True, triggersPerMinute = triggersPerMinute)
 
         # setup triggering
-        self.ps._lowLevelSetExtTriggerRange(VRange = 5)
-        trigDelay = round(1000 / self.triggerFrequency) # in ms
-        trigDelay = 0 # in ms
-        self.ps.setSimpleTrigger('EXT', 0.1, 'Rising', delay=0, timeout_ms = trigDelay, enabled=True)
+        self.ps.setExtTriggerRange(VRange = 0.5)
+        # 0 ms timeout means wait forever
+        self.ps.setSimpleTrigger('EXT', 0.25, 'Rising', delay=0, timeout_ms = 0, enabled=True)
 
         # start the collection
         self.run()
@@ -57,16 +56,9 @@ class ps4262:
     def setTimeBase(self, requestedSamplingInterval=1e-6, tCapture=0.3):
         self.requestedSamplingInterval = requestedSamplingInterval
         self.tCapture = tCapture
-
-        self.ps.oversample = 0
-        self.ps.timebase = self.ps.getTimeBaseNum4262(requestedSamplingInterval)
-        self.actualSampleInterval = self.ps.getTimestepFromTimebase4262(self.ps.timebase)
-        self.ps.noSamples = round(tCapture/self.actualSampleInterval)
-        (self.ps.sampleInterval, self.ps.maxSamples) = self.ps._lowLevelGetTimebase(tb = self.ps.timebase, noSamples = self.ps.noSamples, oversample = self.ps.oversample, segmentIndex = 0)
-        self.actualSamplingInterval = self.ps.sampleInterval
-        self.nSamples = self.ps.noSamples
-        if self.ps.maxSamples < self.ps.noSamples :
-            print("Error: Can't collect that many samples!", self.ps.noSamples)
+        
+        (self.actualSamplingInterval, self.nSamples, maxSamples) = \
+            self.ps.setSamplingInterval(sampleInterval = requestedSamplingInterval, duration = tCapture, oversample=0, segmentIndex=0)
 
     def getMetadata(self):
         """
