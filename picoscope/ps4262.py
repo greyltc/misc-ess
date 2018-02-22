@@ -8,7 +8,7 @@ class ps4262:
     """
     picotech PS4262 library
     """
-    currentScaleFactor = 1.0 # amps per volt
+    currentScaleFactor = 1/10000000 # amps per volt
     def __init__(self, VRange = 2, requestedSamplingInterval = 1e-6, tCapture = 0.3, triggersPerMinute = 30):
         """
         picotech PS4262 library constructor
