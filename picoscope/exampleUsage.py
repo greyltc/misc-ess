@@ -10,7 +10,7 @@ captureDuration = 0.3 # seconds
 triggersPerMinute = 30
 
 ps = ps4262(VRange = voltageRange, requestedSamplingInterval = requestedSamplingInterval, tCapture = captureDuration, triggersPerMinute = triggersPerMinute)
-print (ps.getMetatada())
+print (ps.getMetadata())
 
 def plot(x,y):
     plt.ion()
