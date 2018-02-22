@@ -3,12 +3,27 @@
 
 from picoscope import ps4000
 import numpy as np
+import threading
+import pickle
+
+class BaseThread(threading.Thread):
+    def __init__(self, callback=None, *args, **kwargs):
+        target = kwargs.pop('target')
+        super(BaseThread, self).__init__(target=self.target_with_callback, *args, **kwargs)
+        self.callback = callback
+        self.method = target
+
+    def target_with_callback(self):
+        self.method()
+        if self.callback is not None:
+            self.callback()
 
 class ps4262:
     """
     picotech PS4262 library
     """
     currentScaleFactor = 1/10000000 # amps per volt through our LPM7721 eval board
+    persistentFile = '/var/tmp/edgeCount.bin'
     def __init__(self, VRange = 5, requestedSamplingInterval = 1e-6, tCapture = 0.3, triggersPerMinute = 30):
         """
         picotech PS4262 library constructor
@@ -27,19 +42,70 @@ class ps4262:
 
         # setup triggering
         self.ps.setExtTriggerRange(VRange = 0.5)
-        # 0 ms timeout means wait forever
+        # 0 ms timeout means wait forever for the next trigger
         self.ps.setSimpleTrigger('EXT', 0.25, 'Rising', delay=0, timeout_ms = 0, enabled=True)
 
-        # start the collection
-        self.run()
+        
+        try:
+            self.fp = open(self.persistentFile, mode='r+b')
+            self.edgesCaught = pickle.load(self.fp)
+            self.fp.seek(0)
+        except:
+            self.edgesCaught = 0
+            self.fp = open(self.persistentFile, mode='wb')
+            pickle.dump(self.edgesCaught,self.fp,-1)
+            self.fp.flush()
+            self.fp.seek(0)
+            
+        self.data = None
+        self.spawnNewThreads = True
+        # start the trigger detection thread and the data collection
+        self.runThread()
 
-    def __del__(self):
+    def __del__(self):        
         try:
             self.ps.stop()
+        except:
+            pass
+        
+        try:
             self.ps.close()
         except:
-            print("")
             pass
+        
+        try:
+            self.fp.close()
+        except:
+            pass
+        
+    def resetTriggerCount(self):
+        self.edgesCaught = 0
+        pickle.dump(self.edgesCaught,self.fp,-1)
+        self.fp.flush()
+        self.fp.seek(0)
+    
+    def runThread(self):
+        """create a new trigger detection thread and run it"""
+        self.run()
+        self.edgeThread = BaseThread( name='test', target=self.ps.waitReady,\
+                                      callback=self.edgeDetectCallback)
+        
+        self.edgeThread.start()
+    
+    # this gets called when a trigger has been seen
+    def edgeDetectCallback(self):
+        self.edgesCaught = self.edgesCaught +  1  # incriment edge count
+        pickle.dump(self.edgesCaught,self.fp,-1)
+        self.fp.flush()
+        self.fp.seek(0)
+        
+        # store away the scope data
+        voltageData = self.ps.getDataV('A', self.nSamples, returnOverflow=False)
+        self.data = {"nTriggers": self.edgesCaught, "time": self.timeVector, "current": voltageData * self.currentScaleFactor} 
+        
+        # now spawn a new trigger detection thread
+        if self.spawnNewThreads:
+            self.runThread()
 
     def setFGen(self, enabled = True, triggersPerMinute = 10):
         frequency = triggersPerMinute / 60
@@ -64,11 +130,11 @@ class ps4262:
         """
         Returns metadata struct
         """
-        metaData = {"Voltage Range" : self.VRange,
+        metadata = {"Voltage Range" : self.VRange,
         "Trigger Frequency": self.triggerFrequency,
         "Requested Sampling Interval": self.requestedSamplingInterval,
         "Capture Time": self.tCapture}
-        return metaData
+        return metadata
 
     def getData(self):
         """
@@ -76,12 +142,11 @@ class ps4262:
         time in seconds since trigger (can be negative)
         current in amps
         """
-        self.ps.waitReady() # hang here until data is ready
-        voltageData = self.ps.getDataV('A', self.nSamples, returnOverflow=False)
-
-        resultStruct = {"time": self.timeVector, "current": voltageData * self.currentScaleFactor}
-        self.run() # arm the trigger for next capture
-        return resultStruct
+        while self.data is None:
+            pass
+        retVal = self.data
+        self.data = None
+        return retVal
 
     def run(self):
         """
@@ -90,8 +155,3 @@ class ps4262:
         pretrig = 0.1
         self.ps.runBlock(pretrig = pretrig, segmentIndex = 0)
         self.timeVector = (np.arange(self.ps.noSamples) - int(round(self.ps.noSamples * pretrig))) * self.actualSamplingInterval
-
-    def isReady(self):
-        """Send command to sourcemeter
-        """
-        return self.ps.isReady()
