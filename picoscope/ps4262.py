@@ -68,7 +68,7 @@ class ps4262:
         if self.ps.maxSamples < self.ps.noSamples :
             print("Error: Can't collect that many samples!", self.ps.noSamples)
 
-    def getMetatada(self):
+    def getMetadata(self):
         """
         Returns metadata struct
         """
