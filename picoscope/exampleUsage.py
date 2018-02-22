@@ -4,7 +4,12 @@ from ps4262 import ps4262
 import pylab as plt
 import time
 
-ps = ps4262()
+voltageRange = 2 # volts
+requestedSamplingInterval = 1e-6 # seconds
+captureDuration = 0.3 # seconds
+triggersPerMinute = 30
+
+ps = ps4262(VRange = voltageRange, requestedSamplingInterval = requestedSamplingInterval, tCapture = captureDuration, triggersPerMinute = triggersPerMinute)
 print (ps.getMetatada())
 
 def plot(x,y):

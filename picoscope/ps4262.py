@@ -9,7 +9,7 @@ class ps4262:
     picotech PS4262 library
     """
     currentScaleFactor = 1.0 # amps per volt
-    def __init__(self, VRange = 2, requestedSamplingInterval = 1e-6, tCapture = 0.3, triggersPerMinute = 10):
+    def __init__(self, VRange = 2, requestedSamplingInterval = 1e-6, tCapture = 0.3, triggersPerMinute = 30):
         """
         picotech PS4262 library constructor
         """
@@ -43,7 +43,7 @@ class ps4262:
             pass
 
     def setFGen(self, enabled = True, triggersPerMinute = 10):
-        frequency = 60 / triggersPerMinute
+        frequency = triggersPerMinute / 60
         self.triggerFrequency = frequency
         if enabled is True:
             self.ps.setSigGenBuiltInSimple(offsetVoltage=0.5,pkToPk=1,waveType="Square", frequency=frequency, shots=0, stopFreq=frequency)
