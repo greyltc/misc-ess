@@ -5,6 +5,7 @@ from picoscope import ps4000
 import numpy as np
 import threading
 import pickle
+import time
 
 class BaseThread(threading.Thread):
     def __init__(self, callback=None, *args, **kwargs):
@@ -31,21 +32,6 @@ class ps4262:
         # this opens the device
         self.ps = ps4000.PS4000()
         self.edgeCounterEnabled = False
-
-        # setup sampling interval
-        self._setTimeBase(requestedSamplingInterval = requestedSamplingInterval, tCapture = 0.3)
-
-        # setup current collection channel (A)
-        self._setChannel(VRange = VRange)
-
-        # turn on the function generator
-        self.setFGen(triggersPerMinute = triggersPerMinute)
-
-        # setup triggering
-        self.ps.setExtTriggerRange(VRange = 0.5)
-        # 0 ms timeout means wait forever for the next trigger
-        self.ps.setSimpleTrigger('EXT', 0.25, 'Rising', delay=0, timeout_ms = 0, enabled=True)
-
         
         try:
             self.fp = open(self.persistentFile, mode='r+b')
@@ -59,9 +45,37 @@ class ps4262:
             self.fp.seek(0)
             
         self.data = None
-        self.edgeCounterEnabled = True
-        # start the trigger detection thread and the data collection
-        self._runThread()
+        
+        # set the function generator to zero volts DC
+        #self.ps.setSigGenBuiltInSimple(offsetVoltage=0.2, pkToPk=0.2, waveType="Square", frequency=20, shots=1, triggerType="Rising", triggerSource="SoftTrig", stopFreq=20)
+        #self.ps.setSigGenBuiltInSimple(offsetVoltage=0, pkToPk=0, waveType="DCVoltage", frequency=100, shots=1, stopFreq=100)
+        #time.sleep(2)
+        #self.ps._lowLevelSigGenSoftwareControl(0)
+        #time.sleep(0.1)
+        #self.ps._lowLevelSigGenSoftwareControl(1)
+        
+        
+        # setup sampling interval
+        self._setTimeBase(requestedSamplingInterval = requestedSamplingInterval, tCapture = tCapture)
+        
+        # setup current collection channel, A
+        self._setChannel(VRange = VRange)
+        
+        # setup triggering
+        self.ps.setExtTriggerRange(VRange = 0.5)
+        # 0 ms timeout means wait forever for the next trigger
+        self.ps.setSimpleTrigger('EXT', 0.45, 'Falling', delay=0, timeout_ms = 0, enabled=True)
+        
+        self._run()
+        time.sleep(tCapture*1.05)  # let's make sure the scope's buffer is full before we start doing anything        
+        
+        # throw away initial garbage
+        #self._run()
+        #self.ps.waitReady()
+        #garbageData = self.ps.getDataV('A', self.nSamples, returnOverflow=False)
+        
+        # turn on the function generator
+        self.setFGen(triggersPerMinute = triggersPerMinute)         
 
     def __del__(self):        
         try:
@@ -87,7 +101,6 @@ class ps4262:
     
     def _runThread(self):
         """create a new trigger detection thread and run it"""
-        self._run()
         self.edgeThread = BaseThread( name='edgeWatcher', target=self.ps.waitReady,\
                                       callback=self._edgeDetectCallback)
         
@@ -107,36 +120,91 @@ class ps4262:
         if self.needFGenUpdate:
             self.edgeCounterEnabled = False
             self.setFGen(triggersPerMinute=self.triggersPerMinute)
-            self.edgeCounterEnabled = True
-        # now spawn a new trigger detection thread
-        if self.edgeCounterEnabled:
-            self._runThread()
-
+        else:
+            if self.singleShotPending:
+                self.singleShotPending = False
+                self.edgeCounterEnabled = False  # disable edge counter because we just got a single shot
+            if self.edgeCounterEnabled:
+                self._run()  # initiate data collection
+                self._runThread() # spawn a new trigger detection thread
             
-    def setFGen(self, triggersPerMinute = 10):
+    def setFGen(self, triggersPerMinute = 10, oneShot = False):
         """Sets picoscope function generator parameters
-        use triggersPerMinute = 0 to disable the function generator"""
+        use triggersPerMinute = 0 to disable the function generator
+        use any negative value to send a single shot trigger immediately"""
         self.triggersPerMinute = triggersPerMinute
         frequency = triggersPerMinute / 60
         self.triggerFrequency = frequency
         
-        if frequency > 0:
+        if frequency > 0:  # normal pulse train mode
             offsetVoltage = 0.5
             pkToPk = 1
             waveType="Square"
-            shots=0
-            stopFreq=frequency
-        else:
+            shots = 0
+            stopFreq = frequency
+            self.singleShotPending = False
+            triggerSource = "None"
+            triggerType = "Rising"
+        elif frequency == 0: # FGen off mode
+            offsetVoltage = 0
             pkToPk = 0
-            waveType="DC"
-            frequency=1
-            stopFreq=1
-            shots=1
+            waveType = "DCVoltage"
+            frequency = 1e4
+            stopFreq = 1e4
+            shots = 1
+            self.singleShotPending = False
+            triggerSource = "SoftTrig"
+            triggerType = "Rising"
+            
+        else: # single shot mode
+            offsetVoltage = 0.5
+            pkToPk = 1
+            waveType="Square"
+            shots = 1
+            frequency = 20
+            stopFreq = frequency
+            self.singleShotPending = True
+            triggerSource = "SoftTrig"
+            triggerType = "Rising"
+        
         if self.edgeCounterEnabled:
             self.needFGenUpdate = True
         else:
-            self.ps.setSigGenBuiltInSimple(offsetVoltage=offsetVoltage, pkToPk=pkToPk, waveType=waveType, frequency=frequency, shots=shots, stopFreq=stopFreq)
+            if triggersPerMinute == 0: # only count edges if the FGen will be running
+                self.ps.stop()
+            self.ps.setSigGenBuiltInSimple(offsetVoltage=offsetVoltage, pkToPk=pkToPk, waveType=waveType, frequency=frequency, shots=shots, triggerType=triggerType, triggerSource=triggerSource, stopFreq=stopFreq)
+            self.ps.waitReady()
+            garbageData = self.ps.getDataV('A', self.nSamples, returnOverflow=False)            
+            
+            #time.sleep(2)
+            #if triggersPerMinute != 0: # only count edges if the FGen will be running
+                #self._run()
+            #time.sleep(1)
+            self.ps._lowLevelSigGenSoftwareControl(2)
+            time.sleep(0.2)
+            self.ps._lowLevelSigGenSoftwareControl(2)
+            #self.ps._lowLevelSigGenSoftwareControl(1)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(2)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(3)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(4)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(3)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(2)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(1)
+            #time.sleep(0.1)
+            #self.ps._lowLevelSigGenSoftwareControl(0)
             self.needFGenUpdate = False
+            if triggersPerMinute != 0: # only count edges if the FGen will be running
+                self.edgeCounterEnabled = True
+                self._runThread()
+            else:
+                self.edgeCounterEnabled = False
+                
 
     def _setChannel(self, VRange = 2):
         self.VRange = VRange
@@ -166,7 +234,9 @@ class ps4262:
         current in amps
         """
         while self.data is None:
-            pass
+            if not self.edgeCounterEnabled and self.data is None:
+                print("There is no data and there will never be any!")
+                return None
         retVal = self.data
         self.data = None
         return retVal
@@ -175,6 +245,6 @@ class ps4262:
         """
         This arms the trigger
         """
-        pretrig = 0.1  # 10% of the output data will be from before the trigger event
+        pretrig = 0.5  # 10% of the output data will be from before the trigger event
         self.ps.runBlock(pretrig = pretrig, segmentIndex = 0)
         self.timeVector = (np.arange(self.ps.noSamples) - int(round(self.ps.noSamples * pretrig))) * self.actualSamplingInterval
