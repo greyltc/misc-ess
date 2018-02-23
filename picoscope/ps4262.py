@@ -33,7 +33,7 @@ class ps4262:
         self.edgeCounterEnabled = False
 
         # setup sampling interval
-        self._setTimeBase(requestedSamplingInterval = requestedSamplingInterval, tCapture = 0.3)
+        self._setTimeBase(requestedSamplingInterval = requestedSamplingInterval, tCapture = tCapture)
 
         # setup current collection channel (A)
         self._setChannel(VRange = VRange)
