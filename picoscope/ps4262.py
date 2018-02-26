@@ -119,6 +119,7 @@ class ps4262:
         self.triggersPerMinute = triggersPerMinute
         frequency = triggersPerMinute / 60
         self.triggerFrequency = frequency
+        duration = 1/frequency
         
         if frequency > 0:
             offsetVoltage = 0.5
@@ -128,6 +129,7 @@ class ps4262:
             stopFreq=frequency
         else:
             pkToPk = 0
+            offsetVoltage = 0
             waveType="DC"
             frequency=1
             stopFreq=1
@@ -135,7 +137,17 @@ class ps4262:
         if self.edgeCounterEnabled:
             self.needFGenUpdate = True
         else:
-            self.ps.setSigGenBuiltInSimple(offsetVoltage=offsetVoltage, pkToPk=pkToPk, waveType=waveType, frequency=frequency, shots=shots, stopFreq=stopFreq)
+            nWaveformSamples = 4096
+            sPerSample = duration/nWaveformSamples
+            samplesPer5ms = int(np.floor(5e-3/sPerSample))
+            
+            waveform = np.zeros(nWaveformSamples)
+            waveform[0:samplesPer5ms] = 1.5
+        
+            (waveform_duration, deltaPhase) = self.ps.setAWGSimple(
+                waveform, duration, offsetVoltage=offsetVoltage,
+                indexMode="Single", triggerSource='None', pkToPk=pkToPk, shots=0, triggerType="Rising")            
+            #self.ps.setSigGenBuiltInSimple(offsetVoltage=offsetVoltage, pkToPk=pkToPk, waveType=waveType, frequency=frequency, shots=shots, stopFreq=stopFreq)
             self.needFGenUpdate = False
 
     def _setChannel(self, VRange = 2):
