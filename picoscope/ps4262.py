@@ -5,6 +5,7 @@ from picoscope import ps4000
 import numpy as np
 import threading
 import pickle
+import time
 
 class BaseThread(threading.Thread):
     def __init__(self, callback=None, *args, **kwargs):
@@ -31,6 +32,7 @@ class ps4262:
         # this opens the device
         self.ps = ps4000.PS4000()
         self.edgeCounterEnabled = False
+        self.lastTriggerTime = None
 
         # setup sampling interval
         self._setTimeBase(requestedSamplingInterval = requestedSamplingInterval, tCapture = tCapture)
@@ -44,8 +46,7 @@ class ps4262:
         # setup triggering
         self.ps.setExtTriggerRange(VRange = 0.5)
         # 0 ms timeout means wait forever for the next trigger
-        self.ps.setSimpleTrigger('EXT', 0.25, 'Rising', delay=0, timeout_ms = 0, enabled=True)
-
+        self.ps.setSimpleTrigger('EXT', 0.15, 'Rising', delay=0, timeout_ms = 0, enabled=True)
         
         try:
             self.fp = open(self.persistentFile, mode='r+b')
@@ -95,6 +96,7 @@ class ps4262:
     
     # this gets called when a trigger has been seen
     def _edgeDetectCallback(self):
+        self.lastTriggerTime = time.gmtime() # returns seconds since 1970 GMT
         self.edgesCaught = self.edgesCaught +  1  # incriment edge count
         pickle.dump(self.edgesCaught,self.fp,-1)
         self.fp.flush()
@@ -102,7 +104,7 @@ class ps4262:
         
         # store away the scope data
         voltageData = self.ps.getDataV('A', self.nSamples, returnOverflow=False)
-        self.data = {"nTriggers": self.edgesCaught, "time": self.timeVector, "current": voltageData * self.currentScaleFactor} 
+        self.data = {"nTriggers": self.edgesCaught, "time": self.timeVector, "current": voltageData * self.currentScaleFactor, "timestamp": self.lastTriggerTime} 
         
         if self.needFGenUpdate:
             self.edgeCounterEnabled = False
@@ -137,16 +139,16 @@ class ps4262:
         if self.edgeCounterEnabled:
             self.needFGenUpdate = True
         else:
-            nWaveformSamples = 4096
+            nWaveformSamples = 2 ** 12
             sPerSample = duration/nWaveformSamples
             samplesPer5ms = int(np.floor(5e-3/sPerSample))
             
             waveform = np.zeros(nWaveformSamples)
-            waveform[0:samplesPer5ms] = 1.5
+            waveform[0:samplesPer5ms] = 1
         
             (waveform_duration, deltaPhase) = self.ps.setAWGSimple(
-                waveform, duration, offsetVoltage=offsetVoltage,
-                indexMode="Single", triggerSource='None', pkToPk=pkToPk, shots=0, triggerType="Rising")            
+                waveform, duration, offsetVoltage=0.0,
+                indexMode="Single", triggerSource='None', pkToPk=2.0, shots=0, triggerType="Rising")            
             #self.ps.setSigGenBuiltInSimple(offsetVoltage=offsetVoltage, pkToPk=pkToPk, waveType=waveType, frequency=frequency, shots=shots, stopFreq=stopFreq)
             self.needFGenUpdate = False
 
