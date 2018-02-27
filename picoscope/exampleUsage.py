@@ -32,8 +32,11 @@ i = 0
 while i < 5:
     i = i + 1
     print("Waiting for data...")
-    data = ps.getData() # this call will block until data is ready
+    #data = ps.getData() # this call will block until data is ready
+    while len(ps.data) == 0:
+        pass
     print("Data ready!")
+    data = ps.data.pop()
     x = data["time"]
     y = data["current"]
     print("Drawing plot from trigger number", data["nTriggers"])
@@ -43,14 +46,14 @@ while i < 5:
 
 print("Trigger frequency is", ps.triggerFrequency, "[Hz]")
 time.sleep(2)
-ps.setFGen(triggersPerMinute=240)
+ps.setFGen(triggersPerMinute = 240)
 print("Trigger frequency set to", ps.triggerFrequency, "[Hz]")
 time.sleep(5)
 
 print("We've seen", ps.edgesCaught, "triggers since the beginning of time.")
 
 # this is the only way I can get the threads to shutdown gracefully
-ps.edgeCounterEnabled = False
+ps.enable = False
 
 time.sleep(10) # give the user a chance to look at the plots
 
