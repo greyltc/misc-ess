@@ -4,6 +4,7 @@ from ps4262 import ps4262
 import pylab as plt
 import time
 import sys
+import numpy as np
 
 voltageRange = 5 # volts
 requestedSamplingInterval = 1e-6 # seconds
@@ -37,8 +38,8 @@ while i < 5:
         pass
     print("Data ready!")
     data = ps.data.pop()
-    x = data["time"]
     y = data["current"]
+    x = np.linspace(data["t0"],data['t_end'],len(y))
     print("Drawing plot from trigger number", data["nTriggers"])
     # plot the data
     plot(x,y)
