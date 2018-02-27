@@ -33,16 +33,13 @@ while i < 5:
     i = i + 1
     print("Waiting for data...")
     data = ps.getData() # this call will block until data is ready
-    if data is not None:
-        print("Data ready!")
-        x = data["time"]
-        y = data["current"]
-        print("Drawing plot from trigger number", data["nTriggers"])
-        # plot the data
-        plot(x,y)
-        print("")
-    else:
-        print("There is no data")
+    print("Data ready!")
+    x = data["time"]
+    y = data["current"]
+    print("Drawing plot from trigger number", data["nTriggers"])
+    # plot the data
+    plot(x,y)
+    print("")
 
 print("Trigger frequency is", ps.triggerFrequency, "[Hz]")
 time.sleep(2)
