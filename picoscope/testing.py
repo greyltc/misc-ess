@@ -10,33 +10,41 @@ captureDuration = 0.3 # seconds
 triggersPerMinute = 30
 
 ps = ps4262(VRange = voltageRange, requestedSamplingInterval = requestedSamplingInterval, tCapture = captureDuration, triggersPerMinute = triggersPerMinute)
-ps.ps.getAllUnitInfo()
-print (ps.getMetatada())
+time.sleep(3)
+ps.setFGen(triggersPerMinute=240)
+time.sleep(2)
+ps.setFGen(triggersPerMinute=0)
+time.sleep(10)
+ps.setFGen(triggersPerMinute=-1)
+time.sleep(0.05)
+ps.setFGen(triggersPerMinute=-1)
+time.sleep(0.05)
+ps.setFGen(triggersPerMinute=-1)
+time.sleep(0.05)
+ps.setFGen(triggersPerMinute=-1)
+time.sleep(0.05)
+ps.setFGen(triggersPerMinute=-1)
+time.sleep(0.05)
+#ps.setFGen(triggersPerMinute=240)
+time.sleep(3)
+ps.enable = False
+time.sleep(2)
+print(60)
+ps.setFGen(triggersPerMinute=60)
 
-def plot(x,y):
-    plt.ion()
-    plt.figure()
-    plt.plot(x, y*1e9)
-    plt.grid(True)
-    plt.title("Picoscope 4000 waveform")
-    plt.ylabel("Current [nA]")
-    plt.xlabel("Time [s]")
-    #plt.legend()
-    plt.show()
-    plt.pause(.001)
 
-i = 0
-while i < 5:
-    i = i + 1
-    print("Waiting for data...")
-    while not ps.isReady():
-        pass
-    print("Data ready!")
-    data = ps.getData() # this call will block until data is ready
-    x = data["time"]
-    y = data["current"]
-    # plot the data
-    plot(x,y)
+
+time.sleep(10)
+
+print(0)
+ps.setFGen(triggersPerMinute=0)
+
+
+time.sleep(10)
+
+print("one pulse")
+ps.setFGen(triggersPerMinute=-1)
+time.sleep(5)
 
 # clean up the picoscope by deleting it which calls its deconstructor
 del(ps)
